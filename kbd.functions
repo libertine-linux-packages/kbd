@@ -8,29 +8,29 @@ variant=upstream
 build_needs mkdir ln cp
 libertine_compile_kbd()
 {
-	if core_variable_isUnset kbd_consoleKeymapName; then
-		kbd_consoleKeymapName='us'
+	if core_variable_isUnset libertine_kbd_consoleKeymapName; then
+		libertine_kbd_consoleKeymapName='us'
 	fi
-	if core_variable_isUnset kbd_consoleKeymapInstallAll; then
-		kbd_consoleKeymapInstallAll=false
+	if core_variable_isUnset libertine_kbd_consoleKeymapInstallAll; then
+		libertine_kbd_consoleKeymapInstallAll=false
 	fi
 	_libertine_compile_kbd_installConsoleKeymap
 	
 	
-	if core_variable_isUnset kbd_consoleFontName; then
-		kbd_consoleFontName='lat0-08'
+	if core_variable_isUnset libertine_kbd_consoleFontName; then
+		libertine_kbd_consoleFontName='lat0-08'
 	fi
-	if core_variable_isUnset kbd_consoleFontInstallAll; then
-		kbd_consoleKeymapInstallAll=false
+	if core_variable_isUnset libertine_kbd_consoleFontInstallAll; then
+		libertine_kbd_consoleKeymapInstallAll=false
 	fi
 	_libertine_compile_kbd_installConsoleFont
 	
 	
-	if core_variable_isUnset kbd_consoleMappingName; then
-		kbd_consoleMappingName='8859-1_to_uni'
+	if core_variable_isUnset libertine_kbd_consoleMappingName; then
+		libertine_kbd_consoleMappingName='8859-1_to_uni'
 	fi
-	if core_variable_isUnset kbd_consoleMappingInstallAll; then
-		kbd_consoleKeymapInstallAll=false
+	if core_variable_isUnset libertine_kbd_consoleMappingInstallAll; then
+		libertine_kbd_consoleKeymapInstallAll=false
 	fi
 	_libertine_compile_kbd_installConsoleMapping
 }
@@ -113,14 +113,14 @@ _libertine_compile_kbd_installConsoleKeymap()
 	popd
 	
 	local keymapMappedName
-	case "$kbd_consoleKeymapName" in
+	case "$libertine_kbd_consoleKeymapName" in
 		
 		*/*)
-			keymapMappedName="$kbd_consoleKeymapName"
+			keymapMappedName="$libertine_kbd_consoleKeymapName"
 		;;
 		
 		*)
-			keymapMappedName="${kbd_consoleKeymapName}"/"${kbd_consoleKeymapName}"
+			keymapMappedName="${libertine_kbd_consoleKeymapName}"/"${libertine_kbd_consoleKeymapName}"
 		;;
 		
 	esac
@@ -145,7 +145,7 @@ _libertine_compile_kbd_installConsoleKeymap()
 			found=true
 		fi
 		
-		if $kbd_consoleKeymapInstallAll; then
+		if $libertine_kbd_consoleKeymapInstallAll; then
 			_libertine_compile_kbd_installConsoleKeymap_action
 		elif $found; then
 			_libertine_compile_kbd_installConsoleKeymap_action
@@ -156,7 +156,7 @@ _libertine_compile_kbd_installConsoleKeymap()
 	if $found; then
 		:
 	else
-		core_exitError $core_commandLine_exitCode_CONFIG "Keyboard mapping '$kbd_consoleKeymapName' is not known"
+		core_exitError $core_commandLine_exitCode_CONFIG "Keyboard mapping '$libertine_kbd_consoleKeymapName' is not known"
 	fi
 	
 	# Install link to chosen keymap file
@@ -166,18 +166,18 @@ _libertine_compile_kbd_installConsoleKeymap()
 
 _libertine_compile_kbd_installConsoleFont()
 {
-	local sourceConsoleFontFilePath="$(libertine_public_sourcePath)"/data/consolefonts/"$kbd_consoleFontName".psfu
+	local sourceConsoleFontFilePath="$(libertine_public_sourcePath)"/data/consolefonts/"$libertine_kbd_consoleFontName".psfu
 	if [ ! -s "$sourceConsoleFontFilePath" ]; then
-		core_exitError $core_commandLine_exitCode_CONFIG "Console font '$kbd_consoleFontName' is not known"
+		core_exitError $core_commandLine_exitCode_CONFIG "Console font '$libertine_kbd_consoleFontName' is not known"
 	fi
 	
 	mkdir -m 0755 -p "$(libertine_public_outputInitramfsPath)"/etc
 	
 	local outputConsolefontsFolderPath="$(libertine_public_outputInitramfsPath)"/usr/share/consolefonts
 	mkdir -m 0755 -p "$outputConsolefontsFolderPath"
-	ln -s ../usr/share/consolefonts/"$kbd_consoleFontName".psfu "$(libertine_public_outputInitramfsPath)"/etc/console.psfu
+	ln -s ../usr/share/consolefonts/"$libertine_kbd_consoleFontName".psfu "$(libertine_public_outputInitramfsPath)"/etc/console.psfu
 	
-	if $kbd_consoleFontInstallAll; then
+	if $libertine_kbd_consoleFontInstallAll; then
 		set +f
 		cp "$(libertine_public_sourcePath)"/data/consolefonts/*.psfu "$outputConsolefontsFolderPath"
 		set -f
@@ -188,18 +188,18 @@ _libertine_compile_kbd_installConsoleFont()
 
 _libertine_compile_kbd_installConsoleMapping()
 {
-	local sourceConsoleTransFilePath="$(libertine_public_sourcePath)"/data/consoletrans/"$kbd_consoleMappingName".trans
+	local sourceConsoleTransFilePath="$(libertine_public_sourcePath)"/data/consoletrans/"$libertine_kbd_consoleMappingName".trans
 	if [ ! -s "$sourceConsoleTransFilePath" ]; then
-		core_exitError $core_commandLine_exitCode_CONFIG "Console trans (map) '$kbd_consoleMappingName' is not known"
+		core_exitError $core_commandLine_exitCode_CONFIG "Console trans (map) '$libertine_kbd_consoleMappingName' is not known"
 	fi
 	
 	mkdir -m 0755 -p "$(libertine_public_outputInitramfsPath)"/etc
 	
 	local outputConsoletransFolderPath="$(libertine_public_outputInitramfsPath)"/usr/share/consoletrans
 	mkdir -m 0755 -p "$outputConsoletransFolderPath"
-	ln -s ../usr/share/consoletrans/"$kbd_consoleFontName".trans "$(libertine_public_outputInitramfsPath)"/etc/console.trans
+	ln -s ../usr/share/consoletrans/"$libertine_kbd_consoleFontName".trans "$(libertine_public_outputInitramfsPath)"/etc/console.trans
 	
-	if $kbd_consoleKeymapInstallAll; then
+	if $libertine_kbd_consoleKeymapInstallAll; then
 		set +f
 		cp "$(libertine_public_sourcePath)"/data/consoletrans/*.trans "$outputConsoletransFolderPath"
 		set -f
