@@ -1,0 +1,209 @@
+# This file is part of libertine linux's package gnumake. It is subject to the license terms in the COPYRIGHT file found in the top-level directory of this distribution and at https://raw.githubusercontent.com/libertine-linux-packages/gnumake/master/COPYRIGHT. No part of libertine linux's package gnumake, including this file, may be copied, modified, propagated, or distributed except according to the terms contained in the COPYRIGHT file.
+# Copyright © 2016 The developers of libertine linux's package gnumake. See the COPYRIGHT file in the top-level directory of this distribution and at https://raw.githubusercontent.com/libertine-linux-packages/gnumake/master/COPYRIGHT.
+
+
+variant=upstream
+
+
+build_needs mkdir ln cp
+libertine_compile_kbd()
+{
+	if core_variable_isUnset kbd_consoleKeymapName; then
+		kbd_consoleKeymapName='us'
+	fi
+	if core_variable_isUnset kbd_consoleKeymapInstallAll; then
+		kbd_consoleKeymapInstallAll=false
+	fi
+	_libertine_compile_kbd_installConsoleKeymap
+	
+	
+	if core_variable_isUnset kbd_consoleFontName; then
+		kbd_consoleFontName='lat0-08'
+	fi
+	if core_variable_isUnset kbd_consoleFontInstallAll; then
+		kbd_consoleKeymapInstallAll=false
+	fi
+	_libertine_compile_kbd_installConsoleFont
+	
+	
+	if core_variable_isUnset kbd_consoleMappingName; then
+		kbd_consoleMappingName='8859-1_to_uni'
+	fi
+	if core_variable_isUnset kbd_consoleMappingInstallAll; then
+		kbd_consoleKeymapInstallAll=false
+	fi
+	_libertine_compile_kbd_installConsoleMapping
+}
+
+depends build_ccache
+build_needs ccache
+
+depends build_gnumake
+build_needs make
+
+depends build_slibtool
+build_needs clibtool-static libtoolize realpath
+
+depends build_perl
+build_needs perl
+
+depends build_autoconf
+build_needs autoconf autoheader autom4te autoreconf autoscan autoupdate ifnames
+
+depends build_automake
+build_needs automake aclocal
+
+depends build_gnum4
+build_needs m4
+
+depends build_gnuconfig
+
+depends build_pkg_config
+
+depends build_flex
+build_needs flex
+
+depends build_bison
+build_needs bison
+
+depends build_musl_cross_make_build
+build_needs "$libertine_build"-cc "$libertine_build"-gcc "$libertine_build"-ar "$libertine_build"-ld "$libertine_build"-ranlib
+
+depends build_busybox
+build_needs expr install sort ls sleep
+
+build_needs env sh sed mv grep rm mkdir ln tr
+_libertine_compile_kbd_installConsoleKeymap()
+{
+	libertine_public_populateInputSysrootForBuild
+	
+	libertine_public_autoconf_installPkgConfigM4Macro
+	
+	# Need to compile loadkeys with a hack to avoid trying to open the console when not root
+	pushd "$(libertine_public_sourcePath)"
+	
+		libertine_public_autoconf_replaceWithKnownVersionOfMkinstalldirs config/mkinstalldirs
+		libertine_public_autoconf_replaceWithKnownVersionOfConfigRpath config/config.rpath
+		libertine_public_autoconf_replaceWithKnownVersionOfCompile config/compile
+		libertine_public_autoconf_replaceWithKnownVersionOfYlwrap config/ylwrap
+	
+		# Disable documentation generation
+		sed -i -e 's/SUBDIRS = src data po docs/SUBDIRS = src/g' Makefile.am
+		mv configure.ac configure.ac.orig
+		grep -h -v -F 'AM_GNU_GETTEXT' configure.ac.orig | grep -h -v -F 'ALL_LINGUAS' | \
+			grep -h -v -F 'docs/' | grep -h -v -F 'po/' | grep -h -v -F 'data/' | sed -e 's;tests/Makefile;;g' >configure.ac
+		rm -rf po docs
+		
+		sed -i -e 's/ @INTLLIBS@//g' src/Makefile.am tests/Makefile.am
+
+		libtoolize --install --force --verbose
+		autoreconf --install --force --verbose
+		
+		libertine_public_autoconf_modernAutoconfConfigureForBuild \
+			--disable-vlock \
+			--disable-tests
+		
+		# Bypass the need for a console (and therefore running as root) for -b option - dumb code...
+		sed -i -e 's/fd = getfd(console);/fd = -1;/g' src/loadkeys.c
+
+		libertine_public_ccache_createSymlinks
+		
+		libertine_public_makeSerial
+		
+	popd
+	
+	local keymapMappedName
+	case "$kbd_consoleKeymapName" in
+		
+		*/*)
+			keymapMappedName="$kbd_consoleKeymapName"
+		;;
+		
+		*)
+			keymapMappedName="${kbd_consoleKeymapName}"/"${kbd_consoleKeymapName}"
+		;;
+		
+	esac
+	
+	local outputKeymapsFolderPath="$(libertine_public_outputInitramfsPath)"/usr/share/keymaps
+	mkdir -m 0755 -p "$outputKeymapsFolderPath"
+	
+	_libertine_compile_kbd_installConsoleKeymap_action()
+	{
+		local outputFolderRelativePath="${ourNameMatchingAlpineLinuxBkeymapsName%/*}"
+		mkdir -m 0755 -p "$outputKeymapsFolderPath"/"$outputFolderRelativePath"
+		
+		"$(libertine_public_sourcePath)"/src/loadkeys --bkeymap "$(libertine_public_sourcePath)"/data/keymaps/"$kbdRelativeFilePathWithoutExtension".map >"$outputKeymapsFolderPath"/"$ourNameMatchingAlpineLinuxBkeymapsName".bmap
+	}
+	
+	local found=false
+	local kbdRelativeFilePathWithoutExtension
+	local ourNameMatchingAlpineLinuxBkeymapsName
+	while IFS=$'\t' read -r kbdRelativeFilePathWithoutExtension ourNameMatchingAlpineLinuxBkeymapsName
+	do
+		if [ "$ourNameMatchingAlpineLinuxBkeymapsName" = "$keymapMappedName" ]; then
+			found=true
+		fi
+		
+		if $kbd_consoleKeymapInstallAll; then
+			_libertine_compile_kbd_installConsoleKeymap_action
+		elif $found; then
+			_libertine_compile_kbd_installConsoleKeymap_action
+			break
+		fi
+	done <"$(libertine_public_packagePath)"/keyboard-mappings
+		
+	if $found; then
+		:
+	else
+		core_exitError $core_commandLine_exitCode_CONFIG "Keyboard mapping '$kbd_consoleKeymapName' is not known"
+	fi
+	
+	# Install link to chosen keymap file
+	mkdir -m 0755 -p "$(libertine_public_outputInitramfsPath)"/etc
+	ln -s ../usr/share/keymaps/"$keymapMappedName".bmp "$(libertine_public_outputInitramfsPath)"/etc/console-keymap.bmp
+}
+
+_libertine_compile_kbd_installConsoleFont()
+{
+	local sourceConsoleFontFilePath="$(libertine_public_sourcePath)"/data/consolefonts/"$kbd_consoleFontName".psfu
+	if [ ! -s "$sourceConsoleFontFilePath" ]; then
+		core_exitError $core_commandLine_exitCode_CONFIG "Console font '$kbd_consoleFontName' is not known"
+	fi
+	
+	mkdir -m 0755 -p "$(libertine_public_outputInitramfsPath)"/etc
+	
+	local outputConsolefontsFolderPath="$(libertine_public_outputInitramfsPath)"/usr/share/consolefonts
+	mkdir -m 0755 -p "$outputConsolefontsFolderPath"
+	ln -s ../usr/share/consolefonts/"$kbd_consoleFontName".psfu "$(libertine_public_outputInitramfsPath)"/etc/console.psfu
+	
+	if $kbd_consoleFontInstallAll; then
+		set +f
+		cp "$(libertine_public_sourcePath)"/data/consolefonts/*.psfu "$outputConsolefontsFolderPath"
+		set -f
+	else
+		cp "$sourceConsoleFontFilePath" "$outputConsolefontsFolderPath"
+	fi
+}
+
+_libertine_compile_kbd_installConsoleMapping()
+{
+	local sourceConsoleTransFilePath="$(libertine_public_sourcePath)"/data/consoletrans/"$kbd_consoleMappingName".trans
+	if [ ! -s "$sourceConsoleTransFilePath" ]; then
+		core_exitError $core_commandLine_exitCode_CONFIG "Console trans (map) '$kbd_consoleMappingName' is not known"
+	fi
+	
+	mkdir -m 0755 -p "$(libertine_public_outputInitramfsPath)"/etc
+	
+	local outputConsoletransFolderPath="$(libertine_public_outputInitramfsPath)"/usr/share/consoletrans
+	mkdir -m 0755 -p "$outputConsoletransFolderPath"
+	ln -s ../usr/share/consoletrans/"$kbd_consoleFontName".trans "$(libertine_public_outputInitramfsPath)"/etc/console.trans
+	
+	if $kbd_consoleKeymapInstallAll; then
+		set +f
+		cp "$(libertine_public_sourcePath)"/data/consoletrans/*.trans "$outputConsoletransFolderPath"
+		set -f
+	else
+		cp "$sourceConsoleTransFilePath" "$outputConsoletransFolderPath"
+	fi
+}
