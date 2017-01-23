@@ -161,7 +161,7 @@ _libertine_compile_kbd_installConsoleKeymap()
 	
 	# Install link to chosen keymap file
 	mkdir -m 0755 -p "$(libertine_public_outputInitramfsPath)"/etc
-	ln -s ../usr/share/keymaps/"$keymapMappedName".bmp "$(libertine_public_outputInitramfsPath)"/etc/console-keymap.bmp
+	ln -s ../usr/share/keymaps/"$keymapMappedName".bmap "$(libertine_public_outputInitramfsPath)"/etc/console-keymap.bmap
 }
 
 _libertine_compile_kbd_installConsoleFont()
@@ -197,7 +197,7 @@ _libertine_compile_kbd_installConsoleMapping()
 	
 	local outputConsoletransFolderPath="$(libertine_public_outputInitramfsPath)"/usr/share/consoletrans
 	mkdir -m 0755 -p "$outputConsoletransFolderPath"
-	ln -s ../usr/share/consoletrans/"$libertine_kbd_consoleFontName".trans "$(libertine_public_outputInitramfsPath)"/etc/console.trans
+	ln -s ../usr/share/consoletrans/"$libertine_kbd_consoleMappingName".trans "$(libertine_public_outputInitramfsPath)"/etc/console.trans
 	
 	if $libertine_kbd_consoleKeymapInstallAll; then
 		set +f
